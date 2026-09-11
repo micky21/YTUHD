@@ -8,28 +8,40 @@ INSTALL_TARGET_PROCESSES = YouTube
 
 include $(THEOS)/makefiles/common.mk
 
-LIBVPX_BUILD = $(THEOS_PROJECT_DIR)/vendor/libvpx_ios
+# Unofficial fork fix: THEOS_PROJECT_DIR always points at the root-level
+# project (it's exported once at the top and inherited as-is by every
+# subproject's make -C invocation — see common.mk:76 `export
+# THEOS_PROJECT_DIR`), never at this subproject's own directory. Theos's own
+# makefiles hit the same issue and work around it the same way (see
+# instance/rules.mk: "we use PWD instead of THEOS_PROJECT_DIR because the
+# latter always refers to the root level project so it isn't correct for
+# subprojects"). CURDIR is GNU Make's own reflection of the directory `make
+# -C Tweaks/YTUHD` was invoked in (aggregate.mk uses exactly that), so it
+# correctly resolves to .../Tweaks/YTUHD here.
+YTUHD_DIR := $(CURDIR)
+
+LIBVPX_BUILD = $(YTUHD_DIR)/vendor/libvpx_ios
 LIBVPX_A     = $(LIBVPX_BUILD)/libvpx.a
 
-DAV1D_BUILD  = $(THEOS_PROJECT_DIR)/vendor/dav1d_ios
+DAV1D_BUILD  = $(YTUHD_DIR)/vendor/dav1d_ios
 DAV1D_A      = $(DAV1D_BUILD)/libdav1d.a
 
 # Build libvpx if the static library doesn't exist yet.
 $(LIBVPX_A):
 	@echo "==> Building libvpx (first-time setup)..."
-	$(THEOS_PROJECT_DIR)/vendor/build_libvpx.sh
+	$(YTUHD_DIR)/vendor/build_libvpx.sh
 
 # Build dav1d if the static library doesn't exist yet.
 $(DAV1D_A):
 	@echo "==> Building dav1d (first-time setup)..."
-	$(THEOS_PROJECT_DIR)/vendor/build_dav1d.sh
+	$(YTUHD_DIR)/vendor/build_dav1d.sh
 
 TWEAK_NAME = YTUHD
 $(TWEAK_NAME)_FILES = Tweak.xm Settings.x VideoDecoderHelper.x HAMVPXVideoDecoder.m HAMDav1dVideoDecoder.m
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc \
-    -I$(THEOS_PROJECT_DIR)/vendor/libvpx \
+    -I$(YTUHD_DIR)/vendor/libvpx \
     -I$(LIBVPX_BUILD) \
-    -I$(THEOS_PROJECT_DIR)/vendor/dav1d/include \
+    -I$(YTUHD_DIR)/vendor/dav1d/include \
     -I$(DAV1D_BUILD)/install/include
 $(TWEAK_NAME)_LDFLAGS = $(LIBVPX_A) $(DAV1D_A)
 ifeq ($(SIDELOAD),1)
@@ -60,9 +72,9 @@ before-all:: $(LIBVPX_A) $(DAV1D_A)
 # `make libvpx` target for an explicit rebuild of the library.
 .PHONY: libvpx
 libvpx:
-	$(THEOS_PROJECT_DIR)/vendor/build_libvpx.sh
+	$(YTUHD_DIR)/vendor/build_libvpx.sh
 
 # `make dav1d` target for an explicit rebuild of the library.
 .PHONY: dav1d
 dav1d:
-	$(THEOS_PROJECT_DIR)/vendor/build_dav1d.sh
+	$(YTUHD_DIR)/vendor/build_dav1d.sh
