@@ -39,13 +39,23 @@ $(TWEAK_NAME)_LIBRARIES = undirect
 endif
 $(TWEAK_NAME)_FRAMEWORKS = VideoToolbox
 
-# Ensure libvpx and dav1d are built before compiling any tweak source.
-$(THEOS_OBJ_DIR)/arm64/Tweak.xm.%.o \
-$(THEOS_OBJ_DIR)/arm64/HAMVPXVideoDecoder.m.%.o \
-$(THEOS_OBJ_DIR)/arm64/HAMDav1dVideoDecoder.m.%.o \
-$(THEOS_OBJ_DIR)/arm64/Settings.x.%.o: $(LIBVPX_A) $(DAV1D_A)
-
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+# Ensure libvpx and dav1d are built before compiling any tweak source.
+#
+# Unofficial fork fix: the previous approach declared this dependency as a
+# pattern rule on $(THEOS_OBJ_DIR)/arm64/<file>.%.o *before* including
+# tweak.mk. Theos names actual object files with a flags-hash suffix
+# (e.g. HAMVPXVideoDecoder.m.4d165f00.o) that this repo has no way to predict,
+# so the pattern never matched a real target and the prerequisite was
+# silently a no-op: build_libvpx.sh/build_dav1d.sh never ran, and
+# HAMVPXVideoDecoder.m/HAMDav1dVideoDecoder.m failed with "file not found"
+# for vpx/vpx_decoder.h and dav1d/dav1d.h.
+#
+# before-all:: is Theos's own hook, guaranteed to run before any compilation
+# (see theos/theos makefiles/master/rules.mk: "all:: ... before-all
+# internal-all after-all") — no object-path guessing required.
+before-all:: $(LIBVPX_A) $(DAV1D_A)
 
 # `make libvpx` target for an explicit rebuild of the library.
 .PHONY: libvpx
