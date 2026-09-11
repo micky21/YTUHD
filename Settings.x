@@ -1,3 +1,4 @@
+#import <HBLog.h>
 #import <PSHeader/Misc.h>
 #import <VideoToolbox/VideoToolbox.h>
 #import <YouTubeHeader/YTHotConfig.h>
@@ -229,7 +230,18 @@ NSBundle *YTUHDBundle() {
 
 - (void)updateSectionForCategory:(NSUInteger)category withEntry:(id)entry {
     if (category == TweakSection) {
-        [self updateYTUHDSectionWithEntry:entry];
+        // Unofficial fork fix: opening Settings has been observed to crash with
+        // NSInvalidArgumentException (-[__NSSingleObjectArrayI addObject:]) from
+        // inside this call chain on some YouTube builds. Root cause not yet
+        // isolated (needs a symbolicated crash log against a matching dSYM).
+        // Until then, fail the YTUHD section closed instead of taking down the
+        // whole app: the rest of Settings still works, only the YTUHD section
+        // is skipped for that one render pass.
+        @try {
+            [self updateYTUHDSectionWithEntry:entry];
+        } @catch (NSException *e) {
+            HBLogError(@"YTUHD - updateYTUHDSectionWithEntry crashed, skipping section: %@", e);
+        }
         return;
     }
     %orig;
